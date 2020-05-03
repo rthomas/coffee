@@ -1,3 +1,5 @@
+use crypto::digest::Digest;
+use crypto::sha1::Sha1;
 use tonic::{transport::Server, Request, Response, Status};
 
 use coffee_common::coffee::coffee_server::{Coffee, CoffeeServer};
@@ -50,6 +52,18 @@ impl Coffee for CoffeeService {
         req: Request<RegisterRequest>,
     ) -> Result<Response<RegisterResponse>, Status> {
         // TODO: The actual registration flow - i.e. check if registered and return same api key, otherwise just return a new api key for them for now and store in the db.
-        todo!()
+
+        // For now we will just use a sha1 hash of the email... not ideal but fine for now.
+
+        let mut hasher = Sha1::new();
+        hasher.input_str(&req.get_ref().email);
+
+        let resp = RegisterResponse {
+            success: true,
+            key: Some(ApiKey {
+                key: hasher.result_str(),
+            }),
+        };
+        Ok(Response::new(resp))
     }
 }

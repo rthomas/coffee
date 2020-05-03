@@ -1,6 +1,6 @@
 use coffee_common::coffee::coffee_client::CoffeeClient;
 use coffee_common::coffee::coffee_item::Type;
-use coffee_common::coffee::{AddCoffeeRequest, ApiKey, CoffeeItem};
+use coffee_common::coffee::{AddCoffeeRequest, ApiKey, CoffeeItem, RegisterRequest};
 
 use clap::{App, AppSettings, Arg, SubCommand};
 use tonic::Request;
@@ -28,13 +28,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .required(false)
                 .global(true),
         )
-        // TODO: Add List and Register subcommands.
+        // TODO: Add List subcommands.
         .subcommand(
             SubCommand::with_name("add").about("Adds a coffee").arg(
                 Arg::with_name("AMOUNT")
                     .required(true)
                     .help("The amount of coffee, in shots"),
             ),
+        )
+        .subcommand(
+            SubCommand::with_name("register")
+                .about("Registers an email against an API Key")
+                .arg(
+                    Arg::with_name("EMAIL")
+                        .required(true)
+                        .help("An email address (to be verified against)"),
+                ),
         )
         .get_matches();
 
@@ -59,6 +68,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         });
         let resp = client.add_coffee(add_req).await?;
         println!("Response: {:?}", resp);
+    } else if let Some(cmd) = matches.subcommand_matches("register") {
+        let reg_req = Request::new(RegisterRequest {
+            email: cmd.value_of("EMAIL").unwrap().into(),
+        });
+
+        let resp = client.register(reg_req).await?;
+        println!("Register Response: {:?}", resp);
     }
 
     Ok(())

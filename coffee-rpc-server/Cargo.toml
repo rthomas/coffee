@@ -7,5 +7,6 @@ edition = "2018"
 [dependencies]
 coffee-common = {path = "../coffee-common"}
 
+rust-crypto = "0.2"
 tonic = "0.2.0"
 tokio = { version = "0.2", features = ["macros"] }
