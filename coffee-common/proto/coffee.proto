@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package coffee;
+
+message CoffeeItem {
+    int64 utcTime = 1;
+    enum Type {
+        DECAF = 0;
+        SINGLE_SHOT = 1;
+        DOUBLE_SHOT = 2;
+        TRIPLE_SHOT = 3;
+    }
+    Type coffee_type = 2;
+}
+
+service Coffee {
+    rpc AddCoffee(AddCoffeeRequest) returns (AddCoffeeResponse);
+    rpc ListCoffee(ListCoffeeRequest) returns (ListCoffeeResponse);
+    rpc Register(RegisterRequest) returns (RegisterResponse);
+}
+
+message ApiKey {
+    string key = 1;
+}
+
+message AddCoffeeRequest {
+    ApiKey key = 1;
+    CoffeeItem coffee = 2;
+}
+
+message AddCoffeeResponse {
+    bool success = 1;
+}
+
+message ListCoffeeRequest {
+    ApiKey key = 1;
+    int64 start_utc_time = 2;
+    int64 end_utc_time = 3;
+}
+
+message ListCoffeeResponse {
+    repeated CoffeeItem coffees = 1;
+}
+
+message RegisterRequest {
+    string email = 1;
+}
+
+message RegisterResponse {
+    bool success = 1;
+    ApiKey key = 2;
+}

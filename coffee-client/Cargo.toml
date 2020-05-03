@@ -1,0 +1,12 @@
+[package]
+name = "coffee-client"
+version = "0.1.0"
+authors = ["ryan"]
+edition = "2018"
+
+[dependencies]
+coffee-common = {path = "../coffee-common"}
+
+clap = "2.33"
+tonic = "0.2.0"
+tokio = { version = "0.2", features = ["macros"] }
