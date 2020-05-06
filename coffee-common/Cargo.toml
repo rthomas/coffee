@@ -10,6 +10,7 @@ edition = "2018"
 tonic = "0.2.0"
 prost = "0.6"
 tokio = { version = "0.2", features = ["macros"] }
+sqlx = { version = "0.3", default-features = false, features = [ "runtime-tokio", "macros", "sqlite" ] }
 
 [build-dependencies]
 tonic-build = "0.2"

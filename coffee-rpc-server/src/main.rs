@@ -7,11 +7,15 @@ use coffee_common::coffee::{
     AddCoffeeRequest, AddCoffeeResponse, ApiKey, CoffeeItem, ListCoffeeRequest, ListCoffeeResponse,
     RegisterRequest, RegisterResponse,
 };
+use coffee_common::db::Db;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = "[::1]:50051".parse()?;
-    let coffee = CoffeeService::default();
+    let coffee = CoffeeService {
+        db: Db::new().await?,
+    };
+
     Server::builder()
         .add_service(CoffeeServer::new(coffee))
         .serve(addr)
@@ -20,8 +24,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-#[derive(Debug, Default)]
-struct CoffeeService {}
+#[derive(Debug)]
+struct CoffeeService {
+    db: Db,
+}
 
 #[tonic::async_trait]
 impl Coffee for CoffeeService {
@@ -29,7 +35,7 @@ impl Coffee for CoffeeService {
         &self,
         req: Request<AddCoffeeRequest>,
     ) -> Result<Response<AddCoffeeResponse>, Status> {
-        println!("Adding coffee: {:?}", req);
+        println!("Adding coffee: {:#?}", req);
 
         let resp = AddCoffeeResponse { success: true };
 
@@ -40,7 +46,13 @@ impl Coffee for CoffeeService {
         &self,
         req: Request<ListCoffeeRequest>,
     ) -> Result<Response<ListCoffeeResponse>, Status> {
-        println!("Listing coffee: {:?}", req);
+        println!("Listing coffee: {:#?}", req);
+
+        let api_key = &req.get_ref().key;
+
+        let key = "";
+
+        println!("COFFEES: {:#?}", self.db.get_coffees(key).await.unwrap());
 
         let resp = ListCoffeeResponse { coffees: vec![] };
 

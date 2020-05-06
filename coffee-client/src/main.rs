@@ -1,11 +1,13 @@
 use coffee_common::coffee::coffee_client::CoffeeClient;
 use coffee_common::coffee::coffee_item::Type;
-use coffee_common::coffee::{AddCoffeeRequest, ApiKey, CoffeeItem, RegisterRequest};
+use coffee_common::coffee::{
+    AddCoffeeRequest, ApiKey, CoffeeItem, ListCoffeeRequest, RegisterRequest,
+};
 
 use clap::{App, AppSettings, Arg, SubCommand};
 use tonic::Request;
 
-const DEFAULT_SERVER: &str = "[::1]:50051";
+static DEFAULT_SERVER: &str = "[::1]:50051";
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -45,6 +47,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .help("An email address (to be verified against)"),
                 ),
         )
+        .subcommand(
+            SubCommand::with_name("list")
+                .about("List the coffees for this registered users, with an optional date")
+                .arg(
+                    Arg::with_name("DATE")
+                        .required(false)
+                        .help("A date to list the coffees for."),
+                ),
+        )
         .get_matches();
 
     // TODO: Read config from default (or overridden) location
@@ -67,14 +78,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }),
         });
         let resp = client.add_coffee(add_req).await?;
-        println!("Response: {:?}", resp);
+        println!("Response: {:#?}", resp);
     } else if let Some(cmd) = matches.subcommand_matches("register") {
         let reg_req = Request::new(RegisterRequest {
             email: cmd.value_of("EMAIL").unwrap().into(),
         });
 
         let resp = client.register(reg_req).await?;
-        println!("Register Response: {:?}", resp);
+        println!("Register Response: {:#?}", resp);
+    } else if let Some(cmd) = matches.subcommand_matches("list") {
+        let list_req = Request::new(ListCoffeeRequest {
+            key: Some(ApiKey {
+                key: String::from(""),
+            }),
+            start_utc_time: 0,
+            end_utc_time: 0,
+        });
+
+        let resp = client.list_coffee(list_req).await?;
+        println!("List Response: {:#?}", resp);
     }
 
     Ok(())
