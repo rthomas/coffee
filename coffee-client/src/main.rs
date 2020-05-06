@@ -5,9 +5,18 @@ use coffee_common::coffee::{
 };
 
 use clap::{App, AppSettings, Arg, SubCommand};
+use std::path::Path;
 use tonic::Request;
 
 static DEFAULT_SERVER: &str = "[::1]:50051";
+static DEFAULT_CONFIG: &str = ".coffee";
+
+#[derive(Debug)]
+struct CoffeeConfig {}
+
+fn read_config(cfg: &Path) -> std::io::Result<CoffeeConfig> {
+    Ok(CoffeeConfig {})
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -27,6 +36,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     )
                     .as_str(),
                 )
+                .required(false)
+                .global(true),
+        )
+        .arg(
+            Arg::with_name("config")
+                .short("c")
+                .long("config")
+                .help("Specify a config file")
                 .required(false)
                 .global(true),
         )
@@ -61,6 +78,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // TODO: Read config from default (or overridden) location
     // TODO: Read in API Key and server defaults if set
     // TODO: if no API key then error out.
+
+    let config = match matches.value_of("config") {
+        Some(s) => read_config(Path::new(s))?,
+        None => {
+            let mut home = dirs::home_dir().expect("Could not locate a home directory...");
+            home.push(DEFAULT_CONFIG);
+            read_config(home.as_path())?
+        }
+    };
 
     let addr = match matches.value_of("server") {
         Some(s) => s,
