@@ -17,6 +17,7 @@ pub struct Db {
 
 impl Db {
     pub async fn new() -> Result<Self, Box<dyn std::error::Error>> {
+        // TODO: yeahhhhh, we're gonna need a better way to do this...
         let db = Db {
             pool: SqlitePool::new("sqlite:coffee_db").await?,
         };
