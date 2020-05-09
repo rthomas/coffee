@@ -1,19 +1,67 @@
-use crypto::digest::Digest;
-use crypto::sha1::Sha1;
-use tonic::{transport::Server, Request, Response, Status};
-
 use coffee_common::coffee::coffee_server::{Coffee, CoffeeServer};
 use coffee_common::coffee::{
-    AddCoffeeRequest, AddCoffeeResponse, ApiKey, CoffeeItem, ListCoffeeRequest, ListCoffeeResponse,
+    AddCoffeeRequest, AddCoffeeResponse, ApiKey, ListCoffeeRequest, ListCoffeeResponse,
     RegisterRequest, RegisterResponse,
 };
 use coffee_common::db::Db;
 
+use clap::{App, AppSettings, Arg};
+use crypto::digest::Digest;
+use crypto::sha1::Sha1;
+use tonic::{transport::Server, Request, Response, Status};
+
+static DEFAULT_ADDR: &str = "[::1]:50051";
+static DEFAULT_DB: &str = "coffee_db";
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "[::1]:50051".parse()?;
+    let matches = App::new(env!("CARGO_PKG_NAME"))
+        .setting(AppSettings::ArgRequiredElseHelp)
+        .version(env!("CARGO_PKG_VERSION"))
+        .author(env!("CARGO_PKG_AUTHORS"))
+        .about(env!("CARGO_PKG_DESCRIPTION"))
+        .arg(
+            Arg::with_name("addr")
+                .short("a")
+                .long("addr")
+                .help(
+                    format!(
+                        "Override the default interface address to bind to: {}",
+                        DEFAULT_ADDR
+                    )
+                    .as_str(),
+                )
+                .required(false)
+                .global(true),
+        )
+        .arg(
+            Arg::with_name("config")
+                .short("c")
+                .long("config")
+                .help("Specify a config file")
+                .required(false)
+                .global(true),
+        )
+        .arg(
+            Arg::with_name("db")
+                .long("db")
+                .help(
+                    format!(
+                        "Specify the database file location, defaults to: {}",
+                        DEFAULT_DB
+                    )
+                    .as_str(),
+                )
+                .required(false)
+                .global(true),
+        )
+        .get_matches();
+
+    let addr = matches.value_of("addr").unwrap_or(DEFAULT_ADDR).parse()?;
+    let db = matches.value_of("db").unwrap_or(DEFAULT_DB);
+
     let coffee = CoffeeService {
-        db: Db::new().await?,
+        db: Db::new(db).await?,
     };
 
     Server::builder()
