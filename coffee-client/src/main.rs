@@ -4,15 +4,28 @@ use coffee_common::coffee::{
     AddCoffeeRequest, ApiKey, CoffeeItem, ListCoffeeRequest, RegisterRequest,
 };
 
-use clap::{App, AppSettings, Arg, SubCommand};
+use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{BufReader, BufWriter};
 use std::path::Path;
 use tonic::Request;
 
 static DEFAULT_SERVER: &str = "[::1]:50051";
 static DEFAULT_CONFIG: &str = ".coffee";
+
+#[derive(Debug)]
+enum ClientError {
+    NoApiKey,
+}
+
+impl std::error::Error for ClientError {}
+
+impl std::fmt::Display for ClientError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "{:?}", self)
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 struct CoffeeConfig {
@@ -34,8 +47,36 @@ fn read_config(cfg: &Path) -> std::io::Result<CoffeeConfig> {
     Ok(config)
 }
 
+fn write_config(cfg: &CoffeeConfig) -> std::io::Result<()> {
+    let mut cfg_file = dirs::home_dir().expect("Could not locate a home directory...");
+    cfg_file.push(DEFAULT_CONFIG);
+    let writer = BufWriter::new(File::open(cfg_file)?);
+    serde_json::to_writer(writer, cfg)?;
+    Ok(())
+}
+
+// Gets the API Key from either the args or the config. Args take precedence
+// over the config.
+fn get_api_key<'a>(
+    cfg: &'a Option<CoffeeConfig>,
+    args: &'a ArgMatches,
+) -> Result<&'a str, ClientError> {
+    match args.value_of("key") {
+        Some(k) => Ok(k),
+        None => match cfg {
+            Some(c) => Ok(&c.api_key),
+            None => Err(ClientError::NoApiKey),
+        },
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let key_arg = Arg::with_name("key")
+        .required(false)
+        .short("k")
+        .long("key")
+        .help("Override the API key used");
     let matches = App::new(env!("CARGO_PKG_NAME"))
         .setting(AppSettings::ArgRequiredElseHelp)
         .version(env!("CARGO_PKG_VERSION"))
@@ -63,14 +104,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .required(false)
                 .global(true),
         )
-        // TODO: Add List subcommands.
-        .subcommand(
-            SubCommand::with_name("add").about("Adds a coffee").arg(
-                Arg::with_name("AMOUNT")
-                    .required(true)
-                    .help("The amount of coffee, in shots"),
-            ),
-        )
         .subcommand(
             SubCommand::with_name("register")
                 .about("Registers an email against an API Key")
@@ -81,8 +114,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ),
         )
         .subcommand(
+            SubCommand::with_name("add")
+                .about("Adds a coffee")
+                .arg(&key_arg)
+                .arg(
+                    Arg::with_name("AMOUNT")
+                        .required(true)
+                        .help("The amount of coffee, in shots"),
+                ),
+        )
+        .subcommand(
             SubCommand::with_name("list")
                 .about("List the coffees for this registered users, with an optional date")
+                .arg(&key_arg)
                 .arg(
                     Arg::with_name("DATE")
                         .required(false)
@@ -91,10 +135,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
         .get_matches();
 
-    // TODO: Read config from default (or overridden) location
-    // TODO: Read in API Key and server defaults if set
-    // TODO: if no API key then error out.
-
     let config = match matches.value_of("config") {
         Some(s) => read_config_if_exists(Path::new(s)),
         None => {
@@ -102,7 +142,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             home.push(DEFAULT_CONFIG);
             read_config_if_exists(home.as_path())
         }
-    };
+    }
+    .and_then(|f| match f {
+        Ok(cfg) => Some(cfg),
+        Err(e) => {
+            eprintln!("Could not read config file: {}", e);
+            None
+        }
+    });
 
     println!("Config: {:#?}", config);
 
@@ -113,17 +160,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut client = CoffeeClient::connect(format!("http://{}", addr)).await?;
 
-    if let Some(_cmd) = matches.subcommand_matches("add") {
-        let add_req = Request::new(AddCoffeeRequest {
-            key: Some(ApiKey { key: "foo".into() }),
-            coffee: Some(CoffeeItem {
-                utc_time: 0,
-                coffee_type: Type::SingleShot.into(),
-            }),
-        });
-        let resp = client.add_coffee(add_req).await?;
-        println!("Response: {:#?}", resp);
-    } else if let Some(cmd) = matches.subcommand_matches("register") {
+    if let Some(cmd) = matches.subcommand_matches("register") {
         // TODO: The api key should be mailed, this isn't great - we need a subcommand to take the apikey and write it to the config.
         // For now we'll just write it back to the config.
 
@@ -133,7 +170,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let resp = client.register(reg_req).await?;
         println!("Register Response: {:#?}", resp);
-    } else if let Some(_cmd) = matches.subcommand_matches("list") {
+    } else if let Some(cmd) = matches.subcommand_matches("add") {
+        let api_key = get_api_key(&config, cmd)?;
+
+        let add_req = Request::new(AddCoffeeRequest {
+            key: Some(ApiKey { key: "foo".into() }),
+            coffee: Some(CoffeeItem {
+                utc_time: 0,
+                coffee_type: Type::SingleShot.into(),
+            }),
+        });
+        let resp = client.add_coffee(add_req).await?;
+        println!("Response: {:#?}", resp);
+    } else if let Some(cmd) = matches.subcommand_matches("list") {
+        let api_key = get_api_key(&config, cmd)?;
+
         let list_req = Request::new(ListCoffeeRequest {
             key: Some(ApiKey {
                 key: String::from(""),
