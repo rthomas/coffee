@@ -186,6 +186,7 @@ async fn main() -> Result<(), ClientError> {
                 key: api_key.into(),
             }),
             coffee: Some(CoffeeItem {
+                // TODO: Get the correct values here
                 utc_time: 0,
                 coffee_type: Type::SingleShot.into(),
             }),

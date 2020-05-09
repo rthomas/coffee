@@ -116,11 +116,12 @@ impl Coffee for CoffeeService {
     ) -> Result<Response<ListCoffeeResponse>, Status> {
         println!("Listing coffee: {:#?}", req);
 
-        let api_key = &req.get_ref().key;
+        let api_key = &req.get_ref().key.as_ref().unwrap().key;
 
-        let key = "";
-
-        println!("COFFEES: {:#?}", self.db.get_coffees(key).await.unwrap());
+        println!(
+            "COFFEES: {:#?}",
+            self.db.get_coffees(api_key).await.unwrap()
+        );
 
         let resp = ListCoffeeResponse { coffees: vec![] };
 
