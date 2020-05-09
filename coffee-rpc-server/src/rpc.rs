@@ -5,8 +5,6 @@ use coffee_common::coffee::{
 };
 use coffee_common::db::Db;
 
-use crypto::digest::Digest;
-use crypto::sha1::Sha1;
 use tonic::{Request, Response, Status};
 
 #[derive(Debug)]
@@ -26,18 +24,15 @@ impl Coffee for CoffeeService {
         &self,
         req: Request<RegisterRequest>,
     ) -> Result<Response<RegisterResponse>, Status> {
-        // TODO: The actual registration flow - i.e. check if registered and return same api key, otherwise just return a new api key for them for now and store in the db.
+        let email = &req.get_ref().email;
 
-        // For now we will just use a sha1 hash of the email... not ideal but fine for now.
+        let user = self.db.register_user(email).await?;
 
-        let mut hasher = Sha1::new();
-        hasher.input_str(&req.get_ref().email);
+        println!("USER ENTRY: {:#?}", user);
 
         let resp = RegisterResponse {
             success: true,
-            key: Some(ApiKey {
-                key: hasher.result_str(),
-            }),
+            key: Some(ApiKey { key: user.apikey }),
         };
         Ok(Response::new(resp))
     }

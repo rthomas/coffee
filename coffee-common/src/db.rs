@@ -1,5 +1,7 @@
 // datastructures to be used with sqlx and helper functions.
 
+use crypto::digest::Digest;
+use crypto::sha1::Sha1;
 use sqlx::sqlite::{SqlitePool, SqliteQueryAs};
 
 #[derive(Debug)]
@@ -35,6 +37,12 @@ pub struct Coffee {
     pub utctime: i64,
 }
 
+#[derive(sqlx::FromRow, Debug)]
+pub struct User {
+    pub email: String,
+    pub apikey: String,
+}
+
 #[derive(Debug)]
 pub struct Db {
     pool: SqlitePool,
@@ -66,6 +74,39 @@ impl Db {
         .await?;
 
         Ok(db)
+    }
+
+    // Registers a user and returns the API key for that email address. If the
+    // email already has an API key then that key will be returned.
+    // i.e. There is a 1:1 mapping of email to api-key.
+    pub async fn register_user(&self, email: &str) -> Result<User, DbError> {
+        let user = sqlx::query_as::<_, User>("SELECT email, apikey FROM USERS WHERE email = ?;")
+            .bind(email)
+            .fetch_optional(&self.pool)
+            .await?;
+        match user {
+            Some(u) => {
+                // The user is already registered so return the User struct containing the API key.
+                Ok(u)
+            }
+            None => {
+                // The user needs to be registered.
+                let mut hasher = Sha1::new();
+                hasher.input_str(&email);
+
+                let user = User {
+                    email: email.into(),
+                    apikey: hasher.result_str(),
+                };
+
+                sqlx::query("INSERT INTO USERS(email, apikey) VALUES (?, ?);")
+                    .bind(&user.email)
+                    .bind(&user.apikey)
+                    .execute(&self.pool)
+                    .await?;
+                Ok(user)
+            }
+        }
     }
 
     pub async fn get_coffees(&self, api_key: &str) -> Result<Vec<Coffee>, DbError> {
