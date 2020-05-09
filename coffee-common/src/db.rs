@@ -24,8 +24,8 @@ impl Db {
 
         sqlx::query(
             "CREATE TABLE IF NOT EXISTS USERS(id INTEGER PRIMARY KEY ASC,
-                                                   email TEXT NOT NULL,
-                                                   apikey TEXT NOT NULL);",
+                                                   email TEXT NOT NULL UNIQUE,
+                                                   apikey TEXT NOT NULL UNIQUE);",
         )
         .execute(&db.pool)
         .await?;
