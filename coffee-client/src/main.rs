@@ -1,8 +1,11 @@
+mod error;
+
 use coffee_common::coffee::coffee_client::CoffeeClient;
 use coffee_common::coffee::coffee_item::Type;
 use coffee_common::coffee::{
     AddCoffeeRequest, ApiKey, CoffeeItem, ListCoffeeRequest, RegisterRequest,
 };
+use error::ClientError;
 
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use serde::{Deserialize, Serialize};
@@ -14,20 +17,7 @@ use tonic::Request;
 static DEFAULT_SERVER: &str = "[::1]:50051";
 static DEFAULT_CONFIG: &str = ".coffee";
 
-#[derive(Debug)]
-enum ClientError {
-    NoApiKey,
-}
-
-impl std::error::Error for ClientError {}
-
-impl std::fmt::Display for ClientError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-        write!(f, "{:?}", self)
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 struct CoffeeConfig {
     api_key: String,
 }
@@ -50,7 +40,7 @@ fn read_config(cfg: &Path) -> std::io::Result<CoffeeConfig> {
 fn write_config(cfg: &CoffeeConfig) -> std::io::Result<()> {
     let mut cfg_file = dirs::home_dir().expect("Could not locate a home directory...");
     cfg_file.push(DEFAULT_CONFIG);
-    let writer = BufWriter::new(File::open(cfg_file)?);
+    let writer = BufWriter::new(File::create(cfg_file)?);
     serde_json::to_writer(writer, cfg)?;
     Ok(())
 }
@@ -71,7 +61,7 @@ fn get_api_key<'a>(
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), ClientError> {
     let key_arg = Arg::with_name("key")
         .required(false)
         .short("k")
@@ -170,11 +160,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let resp = client.register(reg_req).await?;
         println!("Register Response: {:#?}", resp);
+        let resp = resp.get_ref();
+
+        if resp.success {
+            // Make sure we only update the api key here if config already
+            // exists - so use the existing one or get a default instance of it.
+            let mut config = config.or(Some(CoffeeConfig::default())).unwrap();
+            config.api_key = match resp.key {
+                Some(ref k) => String::from(&k.key),
+                None => {
+                    eprintln!("No API key returned for successful registration");
+                    return Err(ClientError::RegistrationError);
+                }
+            };
+            write_config(&config)?;
+        } else {
+            eprintln!("Server error when registering.");
+            return Err(ClientError::RegistrationError);
+        }
     } else if let Some(cmd) = matches.subcommand_matches("add") {
         let api_key = get_api_key(&config, cmd)?;
 
         let add_req = Request::new(AddCoffeeRequest {
-            key: Some(ApiKey { key: "foo".into() }),
+            key: Some(ApiKey {
+                key: api_key.into(),
+            }),
             coffee: Some(CoffeeItem {
                 utc_time: 0,
                 coffee_type: Type::SingleShot.into(),
@@ -187,7 +197,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let list_req = Request::new(ListCoffeeRequest {
             key: Some(ApiKey {
-                key: String::from(""),
+                key: api_key.into(),
             }),
             start_utc_time: 0,
             end_utc_time: 0,
