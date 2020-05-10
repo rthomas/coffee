@@ -1,10 +1,7 @@
 mod error;
 
 use coffee_common::coffee::coffee_client::CoffeeClient;
-use coffee_common::coffee::coffee_item::Type;
-use coffee_common::coffee::{
-    AddCoffeeRequest, ApiKey, CoffeeItem, ListCoffeeRequest, RegisterRequest,
-};
+use coffee_common::coffee::{AddCoffeeRequest, CoffeeItem, ListCoffeeRequest, RegisterRequest};
 use error::ClientError;
 
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
@@ -167,13 +164,7 @@ async fn main() -> Result<(), ClientError> {
             // Make sure we only update the api key here if config already
             // exists - so use the existing one or get a default instance of it.
             let mut config = config.or(Some(CoffeeConfig::default())).unwrap();
-            config.api_key = match resp.key {
-                Some(ref k) => String::from(&k.key),
-                None => {
-                    eprintln!("No API key returned for successful registration");
-                    return Err(ClientError::RegistrationError);
-                }
-            };
+            config.api_key = resp.api_key.clone();
             write_config(&config)?;
         } else {
             eprintln!("Server error when registering.");
@@ -182,14 +173,20 @@ async fn main() -> Result<(), ClientError> {
     } else if let Some(cmd) = matches.subcommand_matches("add") {
         let api_key = get_api_key(&config, cmd)?;
 
+        let shots = match cmd.value_of("AMOUNT").unwrap().parse() {
+            Ok(i) => i,
+            Err(e) => {
+                eprintln!("Cannot convert argument to number: {}", e);
+                return Err(ClientError::BadArgument);
+            }
+        };
+
         let add_req = Request::new(AddCoffeeRequest {
-            key: Some(ApiKey {
-                key: api_key.into(),
-            }),
+            api_key: api_key.into(),
             coffee: Some(CoffeeItem {
-                // TODO: Get the correct values here
+                // TODO: Get the correct time here
                 utc_time: 0,
-                coffee_type: Type::SingleShot.into(),
+                shots: shots,
             }),
         });
         let resp = client.add_coffee(add_req).await?;
@@ -198,9 +195,7 @@ async fn main() -> Result<(), ClientError> {
         let api_key = get_api_key(&config, cmd)?;
 
         let list_req = Request::new(ListCoffeeRequest {
-            key: Some(ApiKey {
-                key: api_key.into(),
-            }),
+            api_key: api_key.into(),
             start_utc_time: 0,
             end_utc_time: 0,
         });

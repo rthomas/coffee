@@ -5,6 +5,7 @@ pub enum ClientError {
     Io(std::io::Error),
     TonicStatus(tonic::Status),
     TonicTransport(tonic::transport::Error),
+    BadArgument,
 }
 
 impl std::error::Error for ClientError {}

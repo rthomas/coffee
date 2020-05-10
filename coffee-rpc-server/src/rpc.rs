@@ -1,7 +1,7 @@
 use coffee_common::coffee::coffee_server::Coffee;
 use coffee_common::coffee::{
-    AddCoffeeRequest, AddCoffeeResponse, ApiKey, ListCoffeeRequest, ListCoffeeResponse,
-    RegisterRequest, RegisterResponse,
+    AddCoffeeRequest, AddCoffeeResponse, ListCoffeeRequest, ListCoffeeResponse, RegisterRequest,
+    RegisterResponse,
 };
 use coffee_common::db::Db;
 
@@ -32,7 +32,7 @@ impl Coffee for CoffeeService {
 
         let resp = RegisterResponse {
             success: true,
-            key: Some(ApiKey { key: user.apikey }),
+            api_key: user.apikey,
         };
         Ok(Response::new(resp))
     }
@@ -43,8 +43,19 @@ impl Coffee for CoffeeService {
     ) -> Result<Response<AddCoffeeResponse>, Status> {
         println!("Adding coffee: {:#?}", req);
 
-        let resp = AddCoffeeResponse { success: true };
+        let api_key = &req.get_ref().api_key;
+        let coffee = match &req.get_ref().coffee {
+            Some(c) => coffee_common::db::Coffee {
+                shots: c.shots,
+                utctime: c.utc_time,
+            },
+            None => {
+                return Err(Status::invalid_argument("No coffee provided..."));
+            }
+        };
 
+        self.db.add_coffee(api_key, &coffee).await?;
+        let resp = AddCoffeeResponse { success: true };
         Ok(Response::new(resp))
     }
 
@@ -54,7 +65,7 @@ impl Coffee for CoffeeService {
     ) -> Result<Response<ListCoffeeResponse>, Status> {
         println!("Listing coffee: {:#?}", req);
 
-        let api_key = &req.get_ref().key.as_ref().unwrap().key;
+        let api_key = &req.get_ref().api_key;
 
         println!("COFFEES: {:#?}", self.db.get_coffees(api_key).await?);
 
