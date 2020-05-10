@@ -164,3 +164,22 @@ impl Db {
         Ok(res)
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    static DB: &str = "file::memory:";
+
+    #[tokio::test]
+    pub async fn test_registration() {
+        // Multiple registrations of the same email should result in the
+        // original key.
+        let db = Db::new(DB).await.unwrap();
+        let user1 = db.register_user("foo@bar.com").await.unwrap();
+        let user2 = db.register_user("foo@bar.com").await.unwrap();
+        assert_eq!(user1.apikey, user2.apikey);
+        // The key should be reported as valid...
+        db.validate_api_key(&user1.apikey).await.unwrap();
+    }
+}
