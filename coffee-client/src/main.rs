@@ -141,10 +141,7 @@ async fn main() -> Result<(), ClientError> {
 
     println!("Config: {:#?}", config);
 
-    let addr = match matches.value_of("server") {
-        Some(s) => s,
-        None => DEFAULT_SERVER,
-    };
+    let addr = matches.value_of("server").unwrap_or(DEFAULT_SERVER);
 
     let mut client = CoffeeClient::connect(format!("http://{}", addr)).await?;
 
@@ -153,7 +150,7 @@ async fn main() -> Result<(), ClientError> {
         // For now we'll just write it back to the config.
 
         let reg_req = Request::new(RegisterRequest {
-            email: cmd.value_of("EMAIL").unwrap().into(),
+            email: cmd.value_of("EMAIL").unwrap_or("").into(),
         });
 
         let resp = client.register(reg_req).await?;
@@ -173,7 +170,7 @@ async fn main() -> Result<(), ClientError> {
     } else if let Some(cmd) = matches.subcommand_matches("add") {
         let api_key = get_api_key(&config, cmd)?;
 
-        let shots = match cmd.value_of("AMOUNT").unwrap().parse() {
+        let shots = match cmd.value_of("AMOUNT").unwrap_or("").parse() {
             Ok(i) => i,
             Err(e) => {
                 eprintln!("Cannot convert argument to number: {}", e);
