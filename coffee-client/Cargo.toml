@@ -7,6 +7,7 @@ edition = "2018"
 [dependencies]
 coffee-common = {path = "../coffee-common"}
 
+chrono = "0.4"
 clap = "2.33"
 dirs = "2.0.2"
 serde = {version = "1.0", features = ["derive"]}

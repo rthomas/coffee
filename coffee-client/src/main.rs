@@ -4,6 +4,7 @@ use coffee_common::coffee::coffee_client::CoffeeClient;
 use coffee_common::coffee::{AddCoffeeRequest, CoffeeItem, ListCoffeeRequest, RegisterRequest};
 use error::ClientError;
 
+use chrono::prelude::*;
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use serde::{Deserialize, Serialize};
 use std::fs::File;
@@ -139,7 +140,7 @@ async fn main() -> Result<(), ClientError> {
         }
     });
 
-    println!("Config: {:#?}", config);
+    dbg!("Config: {:#?}", &config);
 
     let addr = matches.value_of("server").unwrap_or(DEFAULT_SERVER);
 
@@ -178,16 +179,20 @@ async fn main() -> Result<(), ClientError> {
             }
         };
 
+        let utc_time = Utc::now().timestamp_millis();
+
         let add_req = Request::new(AddCoffeeRequest {
             api_key: api_key.into(),
-            coffee: Some(CoffeeItem {
-                // TODO: Get the correct time here
-                utc_time: 0,
-                shots: shots,
-            }),
+            coffee: Some(CoffeeItem { utc_time, shots }),
         });
         let resp = client.add_coffee(add_req).await?;
-        println!("Response: {:#?}", resp);
+        dbg!("Response: {:#?}", &resp);
+
+        if resp.get_ref().success {
+            println!("Done!");
+        } else {
+            return Err(ClientError::AddFailed);
+        }
     } else if let Some(cmd) = matches.subcommand_matches("list") {
         let api_key = get_api_key(&config, cmd)?;
 
@@ -198,7 +203,7 @@ async fn main() -> Result<(), ClientError> {
         });
 
         let resp = client.list_coffee(list_req).await?;
-        println!("List Response: {:#?}", resp);
+        dbg!("List Response: {:#?}", resp);
     }
 
     Ok(())

@@ -2,6 +2,7 @@
 pub enum ClientError {
     NoApiKey,
     RegistrationError,
+    AddFailed,
     Io(std::io::Error),
     TonicStatus(tonic::Status),
     TonicTransport(tonic::transport::Error),
