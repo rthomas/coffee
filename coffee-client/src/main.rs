@@ -7,6 +7,7 @@ use error::ClientError;
 use chrono::prelude::*;
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::Path;
@@ -202,13 +203,24 @@ async fn main() -> Result<(), ClientError> {
         let resp = client.list_coffee(list_req).await?;
 
         if !&resp.get_ref().coffees.is_empty() {
-            let mut acc = 0;
+            let mut daily_coffees = HashMap::new();
             for coffee in &resp.get_ref().coffees {
+                // Group the coffees by date.
                 let t = Utc.timestamp(coffee.utc_time, 0).with_timezone(&Local);
-                acc += coffee.shots;
-                println!("{} @ {} - {} shots", t.date(), t.time(), coffee.shots);
+                let coffees = daily_coffees.entry(t.date()).or_insert_with(|| Vec::new());
+                coffees.push(coffee);
             }
-            println!("\n{} shots of coffee total.", acc);
+
+            for (date, coffees) in daily_coffees {
+                let mut acc = 0;
+                println!("{:20}", date);
+                for c in coffees {
+                    let t = Utc.timestamp(c.utc_time, 0).with_timezone(&Local);
+                    acc += c.shots;
+                    println!("{:16}{:10}: {}", "", t.time(), c.shots);
+                }
+                println!("{:26}{}", "Daily Total:", acc);
+            }
         } else {
             println!("Nothing found :(");
         }
