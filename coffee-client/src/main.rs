@@ -179,7 +179,8 @@ async fn main() -> Result<(), ClientError> {
             }
         };
 
-        let utc_time = Utc::now().timestamp_millis();
+        // Seconds from unix epoch.
+        let utc_time = Utc::now().timestamp();
 
         let add_req = Request::new(AddCoffeeRequest {
             api_key: api_key.into(),
@@ -203,7 +204,19 @@ async fn main() -> Result<(), ClientError> {
         });
 
         let resp = client.list_coffee(list_req).await?;
-        dbg!("List Response: {:#?}", resp);
+        dbg!("List Response: {:#?}", &resp);
+
+        if !&resp.get_ref().coffees.is_empty() {
+            let mut acc = 0;
+            for coffee in &resp.get_ref().coffees {
+                let t = Utc.timestamp(coffee.utc_time, 0).with_timezone(&Local);
+                acc += coffee.shots;
+                println!("{} @ {} - {} shots", t.date(), t.time(), coffee.shots);
+            }
+            println!("\n{} shots of coffee total.", acc);
+        } else {
+            println!("Nothing found :(");
+        }
     }
 
     Ok(())

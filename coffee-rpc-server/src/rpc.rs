@@ -1,7 +1,7 @@
 use coffee_common::coffee::coffee_server::Coffee;
 use coffee_common::coffee::{
-    AddCoffeeRequest, AddCoffeeResponse, ListCoffeeRequest, ListCoffeeResponse, RegisterRequest,
-    RegisterResponse,
+    AddCoffeeRequest, AddCoffeeResponse, CoffeeItem, ListCoffeeRequest, ListCoffeeResponse,
+    RegisterRequest, RegisterResponse,
 };
 use coffee_common::db::Db;
 
@@ -28,7 +28,7 @@ impl Coffee for CoffeeService {
 
         let user = self.db.register_user(email).await?;
 
-        println!("USER ENTRY: {:#?}", user);
+        dbg!("USER ENTRY: {:#?}", &user);
 
         let resp = RegisterResponse {
             success: true,
@@ -41,7 +41,7 @@ impl Coffee for CoffeeService {
         &self,
         req: Request<AddCoffeeRequest>,
     ) -> Result<Response<AddCoffeeResponse>, Status> {
-        println!("Adding coffee: {:#?}", req);
+        dbg!("Adding coffee: {:#?}", &req);
 
         let api_key = &req.get_ref().api_key;
         let coffee = match &req.get_ref().coffee {
@@ -63,13 +63,22 @@ impl Coffee for CoffeeService {
         &self,
         req: Request<ListCoffeeRequest>,
     ) -> Result<Response<ListCoffeeResponse>, Status> {
-        println!("Listing coffee: {:#?}", req);
+        dbg!("Listing coffee: {:#?}", &req);
 
         let api_key = &req.get_ref().api_key;
 
-        println!("COFFEES: {:#?}", self.db.get_coffees(api_key).await?);
+        let db_coffees = self.db.get_coffees(api_key).await?;
 
-        let resp = ListCoffeeResponse { coffees: vec![] };
+        let mut coffees = Vec::with_capacity(db_coffees.len());
+
+        for c in db_coffees {
+            coffees.push(CoffeeItem {
+                utc_time: c.utctime,
+                shots: c.shots,
+            });
+        }
+
+        let resp = ListCoffeeResponse { coffees };
 
         Ok(Response::new(resp))
     }
