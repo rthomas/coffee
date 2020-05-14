@@ -155,7 +155,8 @@ impl Db {
                   FROM COFFEE
                   INNER JOIN USERS
                   ON COFFEE.user = USERS.id
-                  WHERE USERS.apikey = ?",
+                  WHERE USERS.apikey = ?
+                  ORDER BY utctime ASC",
         )
         .bind(&key.api_key)
         .fetch_all(&self.pool)

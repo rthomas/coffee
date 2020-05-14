@@ -140,10 +140,7 @@ async fn main() -> Result<(), ClientError> {
         }
     });
 
-    dbg!("Config: {:#?}", &config);
-
     let addr = matches.value_of("server").unwrap_or(DEFAULT_SERVER);
-
     let mut client = CoffeeClient::connect(format!("http://{}", addr)).await?;
 
     if let Some(cmd) = matches.subcommand_matches("register") {
@@ -155,7 +152,6 @@ async fn main() -> Result<(), ClientError> {
         });
 
         let resp = client.register(reg_req).await?;
-        println!("Register Response: {:#?}", resp);
         let resp = resp.get_ref();
 
         if resp.success {
@@ -164,6 +160,7 @@ async fn main() -> Result<(), ClientError> {
             let mut config = config.or(Some(CoffeeConfig::default())).unwrap();
             config.api_key = resp.api_key.clone();
             write_config(&config)?;
+            println!("Config updates.");
         } else {
             eprintln!("Server error when registering.");
             return Err(ClientError::RegistrationError);
@@ -187,7 +184,6 @@ async fn main() -> Result<(), ClientError> {
             coffee: Some(CoffeeItem { utc_time, shots }),
         });
         let resp = client.add_coffee(add_req).await?;
-        dbg!("Response: {:#?}", &resp);
 
         if resp.get_ref().success {
             println!("Done!");
@@ -204,7 +200,6 @@ async fn main() -> Result<(), ClientError> {
         });
 
         let resp = client.list_coffee(list_req).await?;
-        dbg!("List Response: {:#?}", &resp);
 
         if !&resp.get_ref().coffees.is_empty() {
             let mut acc = 0;

@@ -25,11 +25,7 @@ impl Coffee for CoffeeService {
         req: Request<RegisterRequest>,
     ) -> Result<Response<RegisterResponse>, Status> {
         let email = &req.get_ref().email;
-
         let user = self.db.register_user(email).await?;
-
-        dbg!("USER ENTRY: {:#?}", &user);
-
         let resp = RegisterResponse {
             success: true,
             api_key: user.apikey,
@@ -41,8 +37,6 @@ impl Coffee for CoffeeService {
         &self,
         req: Request<AddCoffeeRequest>,
     ) -> Result<Response<AddCoffeeResponse>, Status> {
-        dbg!("Adding coffee: {:#?}", &req);
-
         let api_key = &req.get_ref().api_key;
         let coffee = match &req.get_ref().coffee {
             Some(c) => coffee_common::db::Coffee {
@@ -63,12 +57,8 @@ impl Coffee for CoffeeService {
         &self,
         req: Request<ListCoffeeRequest>,
     ) -> Result<Response<ListCoffeeResponse>, Status> {
-        dbg!("Listing coffee: {:#?}", &req);
-
         let api_key = &req.get_ref().api_key;
-
         let db_coffees = self.db.get_coffees(api_key).await?;
-
         let mut coffees = Vec::with_capacity(db_coffees.len());
 
         for c in db_coffees {
