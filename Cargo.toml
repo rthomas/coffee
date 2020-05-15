@@ -3,4 +3,5 @@ members = [
     "coffee-common",
     "coffee-client",
     "coffee-rpc-server",
+    "coffee-web-server",
 ]
