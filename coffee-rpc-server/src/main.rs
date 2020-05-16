@@ -28,6 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     )
                     .as_str(),
                 )
+                .takes_value(true)
                 .required(false)
                 .global(true),
         )
@@ -36,6 +37,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .short("c")
                 .long("config")
                 .help("Specify a config file")
+                .takes_value(true)
                 .required(false)
                 .global(true),
         )
@@ -49,6 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     )
                     .as_str(),
                 )
+                .takes_value(true)
                 .required(false)
                 .global(true),
         )

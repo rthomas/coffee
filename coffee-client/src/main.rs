@@ -83,6 +83,7 @@ async fn main() -> Result<(), ClientError> {
                     )
                     .as_str(),
                 )
+                .takes_value(true)
                 .required(false)
                 .global(true),
         )
@@ -91,6 +92,7 @@ async fn main() -> Result<(), ClientError> {
                 .short("c")
                 .long("config")
                 .help("Specify a config file")
+                .takes_value(true)
                 .required(false)
                 .global(true),
         )
