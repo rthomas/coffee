@@ -1,34 +1,32 @@
 #[macro_use]
-extern crate tower_web;
+extern crate serde_json;
 
-use clap::{App, AppSettings, Arg};
-
-use serde::Serialize;
-use tower_web::view::Handlebars;
-use tower_web::Response;
-use tower_web::ServiceBuilder;
+use actix_web::{get, web, HttpResponse, HttpServer};
+use clap::{AppSettings, Arg};
+use handlebars::Handlebars;
 
 static DEFAULT_ADDR: &str = "[::1]:8080";
 
-#[derive(Clone, Debug)]
-struct HtmlResource;
+#[get("/")]
+async fn index() -> HttpResponse {
+    HttpResponse::Ok().body("index!")
+}
 
-#[derive(Response)]
-struct CoffeeResponse;
+#[get("/c/{api_key}")]
+async fn get_coffee(hb: web::Data<Handlebars<'_>>, api_key: web::Path<String>) -> HttpResponse {
+    let data = json!({
+        "api_key": format!("{}", api_key),
+    });
 
-impl_web! {
-    impl HtmlResource{
-        #[get("/")]
-        #[content_type("html")]
-        #[web(template = "index")]
-        fn get_index(&self) -> Result<CoffeeResponse, ()> {
-            Ok(CoffeeResponse{})
-        }
+    match hb.render("coffee", &data) {
+        Ok(body) => HttpResponse::Ok().body(body),
+        Err(e) => HttpResponse::InternalServerError().body(format!("Error: {}", e)),
     }
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let matches = App::new(env!("CARGO_PKG_NAME"))
+#[actix_rt::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let matches = clap::App::new(env!("CARGO_PKG_NAME"))
         .setting(AppSettings::ColoredHelp)
         .version(env!("CARGO_PKG_VERSION"))
         .author(env!("CARGO_PKG_AUTHORS"))
@@ -48,12 +46,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .global(true),
         )
         .get_matches();
-    let addr = matches.value_of("addr").unwrap_or(DEFAULT_ADDR).parse()?;
+    let addr = matches.value_of("addr").unwrap_or(DEFAULT_ADDR);
 
-    ServiceBuilder::new()
-        .resource(HtmlResource)
-        .serializer(Handlebars::new())
-        .run(&addr)?;
+    let mut handlebars = Handlebars::new();
+    handlebars.register_templates_directory(".html", "./templates")?;
+    let hb_ref = web::Data::new(handlebars);
+
+    HttpServer::new(move || {
+        actix_web::App::new()
+            .app_data(hb_ref.clone())
+            .service(index)
+            .service(get_coffee)
+    })
+    .bind(addr)?
+    .run()
+    .await?;
 
     Ok(())
 }

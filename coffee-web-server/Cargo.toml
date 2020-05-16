@@ -7,7 +7,8 @@ edition = "2018"
 [dependencies]
 coffee-common = {path = "../coffee-common"}
 
-clap = "2.33"
-serde = {version = "1.0", features = ["derive"]}
-tokio = { version = "0.2", features = ["macros"] }
-tower-web = "0.3"
+actix-web = "2.0.0"
+actix-rt = "1.1.1"
+clap = "2.33.1"
+handlebars = { version = "3.0.1", features = ["dir_source"] }
+serde_json = "1.0"
